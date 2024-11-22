@@ -1,0 +1,262 @@
+#Assignment 1:  filtering
+
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+image = cv2.imread('road_grayscale.jpg', cv2.IMREAD_GRAYSCALE)
+
+def display_image(title, img):
+    plt.imshow(img, cmap='gray')
+    plt.title(title)
+    plt.axis('off')
+    plt.show()
+
+def apply_filter(img, filter_type):
+    if filter_type == 'sobel':
+        sobelx = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=5)
+        sobely = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=5)
+        result = np.uint8(np.sqrt(sobelx**2 + sobely**2))
+        display_image("Sobel Filter", result)
+    elif filter_type == 'median':
+        display_image("Median Filter", cv2.medianBlur(img, 5))
+    elif filter_type == 'gaussian':
+        display_image("Gaussian Filter", cv2.GaussianBlur(img, (5, 5), 0))
+
+def menu():
+    print("\nImage Filtering: Apply filters to observe effects on image properties.")
+    print("1. Sobel Filter\n2. Median Filter\n3. Gaussian Filter\n4. Exit")
+
+    choice = input("Enter your choice (1/2/3/4): ")
+    if choice == '1':
+        apply_filter(image, 'sobel')
+    elif choice == '2':
+        apply_filter(image, 'median')
+    elif choice == '3':
+        apply_filter(image, 'gaussian')
+    elif choice == '4':
+        print("Exiting...")
+        return False
+    else:
+        print("Invalid choice. Please try again.")
+    return True
+
+while menu():
+    pass
+
+
+
+
+# Assignment 2:  image segmentation
+
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Function to display images
+def show_images(original, processed, title):
+    plt.subplot(1, 2, 1)
+    plt.imshow(original, cmap='gray')
+    plt.title("Original")
+    plt.axis('off')
+    plt.subplot(1, 2, 2)
+    plt.imshow(processed, cmap='gray')
+    plt.title(title)
+    plt.axis('off')
+    plt.show()
+
+# Thresholding methods
+def simple_threshold(img):
+    _, thresh = cv2.threshold(img, 120, 255, cv2.THRESH_BINARY)    #for basic binary thresholding(single thresholding)
+    show_images(img, thresh, "Simple Threshold")
+
+def adaptive_threshold(img):
+    thresh = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
+    show_images(img, thresh, "Adaptive Threshold")
+
+def otsu_threshold(img):
+    _, thresh = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    show_images(img, thresh, "Otsu Threshold")
+
+def region_growing(img):
+    img2=img.copy()
+    mask = np.zeros((img.shape[0] + 2, img.shape[1] + 2), np.uint8)
+    cv2.floodFill(img, mask, (img.shape[1] // 2, img.shape[0] // 2), 255, loDiff=15, upDiff=15)
+    show_images(img2, mask[1:-1, 1:-1] * 255, "Region Growing")
+
+# Main function
+def main():
+    img = cv2.imread('/content/drive/MyDrive/sample.jpg', cv2.IMREAD_GRAYSCALE)
+    print("1. Simple Threshold\n2. Adaptive Threshold\n3. Otsu Threshold\n4. Region Growing\n5. Exit")
+    choice = input("Choose an option: ")
+    
+    if choice == '1':
+        simple_threshold(img)
+    elif choice == '2':
+        adaptive_threshold(img)
+    elif choice == '3':
+        otsu_threshold(img)
+    elif choice == '4':
+        region_growing(img)
+    else:
+        print("Exiting...")
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+# Assignment 3:  image registration
+
+
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+def load_images(fixed_path, moving_path):
+    # Load images in grayscale mode
+    return cv2.imread(fixed_path, 0), cv2.imread(moving_path, 0)
+
+def apply_transformation(img, choice):
+    rows, cols = img.shape
+    if choice == 1:  # Translate
+        matrix = np.float32([[1, 0, 20], [0, 1, 10]])
+        return cv2.warpAffine(img, matrix, (cols, rows))
+    elif choice == 2:  # Rotate
+        center = (cols // 2, rows // 2)
+        matrix = cv2.getRotationMatrix2D(center, 15, 1)
+        return cv2.warpAffine(img, matrix, (cols, rows))
+    elif choice == 3:  # Scale
+        return cv2.resize(img, None, fx=1.1, fy=1.1)
+    elif choice == 4:  # Shear
+        matrix = np.float32([[1, 0.2, 0], [0.2, 1, 0]])
+        return cv2.warpAffine(img, matrix, (cols, rows))
+    elif choice == 5:  # Reflect
+        return cv2.flip(img, 1)
+    else:
+        print("Invalid choice")
+        return img
+
+def show_images(fixed_image, moving_image, registered_image):
+    # Display the fixed, moving, and registered images
+    plt.subplot(1, 3, 1)
+    plt.imshow(fixed_image, cmap='gray')
+    plt.title("Fixed Image")
+    plt.axis('off')
+    plt.subplot(1, 3, 2)
+    plt.imshow(moving_image, cmap='gray')
+    plt.title("Moving Image")
+    plt.axis('off')
+    plt.subplot(1, 3, 3)
+    plt.imshow(registered_image, cmap='gray')
+    plt.title("Registered Image")
+    plt.axis('off')
+    plt.show()
+
+def main():
+    fixed, moving = load_images('road_grayscale.jpg', 'road_grayscale_moving img.jpg')
+    while True:
+        # Display the transformation options
+        choice = int(input("1: Translate 2: Rotate 3: Scale 4: Shear 5: Reflect 6: Exit\nChoose: "))
+        if choice == 6:
+            print("Exiting...")
+            break
+        # Apply chosen transformation and display images
+        registered = apply_transformation(moving, choice)
+        show_images(fixed, moving, registered)
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+
+# Assignment 4:  Visualizing CNNs
+
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+
+# Load and preprocess the image
+image_path = 'road_grayscale.jpg'
+image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)  # Load in grayscale
+image = cv2.resize(image, (300, 300)) / 255.0  # Resize and normalize
+image = tf.convert_to_tensor(image, dtype=tf.float32)
+
+def show_image(img, title):
+    plt.imshow(tf.squeeze(img), cmap='gray')
+    plt.title(title)
+    plt.axis('off')
+    plt.show()
+
+while True:
+    print("\n1: Show Original\n2: Edge Detection\n3: ReLU\n4: Max Pool\n5: Exit")
+    choice = int(input("Choose: "))
+
+    if choice == 1:
+        show_image(image, "Original Image")
+
+    elif choice == 2:  #Convolutional Edge Detection
+        kernel = tf.constant([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]], dtype=tf.float32)
+        kernel = tf.reshape(kernel, [3, 3, 1, 1])
+        convolved = tf.nn.conv2d(image[None, ..., None], kernel, strides=1, padding='SAME')
+        show_image(convolved, "Edge Detection")
+
+    elif choice == 3:  # ReLU Activation
+        relu_image = tf.nn.relu(image)
+        show_image(relu_image, "ReLU Activation")
+
+    elif choice == 4:  # Max Pooling
+        pooled_image = tf.nn.pool(image[None, ..., None], window_shape=(2, 2), pooling_type='MAX', strides=(2, 2), padding='SAME')
+        show_image(pooled_image, "Max Pooled")
+
+    elif choice == 5:
+        print("Exiting...")
+        break
+
+    else:
+        print("Invalid choice. Please select a number between 1 and 5.")
+
+
+
+
+
+
+
+
+# Assignment 5:  Object detection
+
+# pip install ultralytics
+
+from ultralytics import YOLO
+import cv2
+import matplotlib.pyplot as plt
+
+# Load YOLOv8 model
+model = YOLO('/content/drive/MyDrive/yolov8n.pt')  # Use your model path
+
+# Load image
+img = cv2.imread('/content/road_img.jpg')  # Use your image path
+results = model(img)
+
+# Draw bounding boxes and labels
+for box in results[0].boxes:
+    x1, y1, x2, y2 = map(int, box.xyxy[0])
+    name = model.names[int(box.cls[0])]
+    confidence = box.conf[0]
+
+    # Draw bounding box and label
+    cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    cv2.putText(img, f"{name}: {confidence:.2f}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+# Convert to RGB and display with Matplotlib
+img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+plt.imshow(img_rgb)
+plt.axis('off')
+plt.title('Object Detections')
+plt.show()
