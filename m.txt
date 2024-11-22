@@ -1,0 +1,247 @@
+# LSTM
+
+
+
+# Sentiment Analysis using LSTM
+
+import pandas as pd
+import numpy as np
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, LSTM, Dense, Bidirectional, Dropout
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+
+# Load and preprocess dataset
+df = pd.read_csv(r'C:\Users\Manthan\Desktop\CV_DL_Practicals\sentiment_analysis.csv')
+df = df.dropna(subset=['text', 'sentiment'])  # Drop missing values
+df['text'] = df['text'].astype(str)
+
+# Encode labels
+label_encoder = LabelEncoder()
+y = label_encoder.fit_transform(df['sentiment'])
+
+# Tokenize and pad sequences
+tokenizer = Tokenizer(num_words=10000)
+tokenizer.fit_on_texts(df['text'])
+sequences = tokenizer.texts_to_sequences(df['text'])
+X = pad_sequences(sequences, maxlen=1000, padding='post')
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Build and compile the LSTM model
+model = Sequential([
+    Embedding(10000, 128, input_length=1000),
+    Bidirectional(LSTM(64, return_sequences=True)),
+    Bidirectional(LSTM(32)),
+    Dense(64, activation='relu'),
+    Dropout(0.5),
+    Dense(len(label_encoder.classes_), activation='softmax')
+])
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+# Train the model
+model.fit(X_train, y_train, epochs=1, batch_size=32, validation_data=(X_test, y_test))
+
+# Predict sentiment of new text
+def predict_sentiment(text):
+    tokens = tokenizer.texts_to_sequences([text])
+    padded_text = pad_sequences(tokens, maxlen=1000, padding='post')
+    prediction = model.predict(padded_text).argmax()
+    sentiment = label_encoder.inverse_transform([prediction])[0]
+    print(f"Text: {text}\nSentiment: {sentiment}")
+
+# Example predictions
+predict_sentiment("This game is amazing!")
+predict_sentiment("The service was terrible.")
+predict_sentiment("It's okay, nothing special.")
+
+
+
+
+
+
+
+#Image classification
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras import Sequential
+from tensorflow.keras.layers import InputLayer, Conv2D, MaxPool2D, Dense, Flatten
+
+data = np.load('./Image_Classification/mnist_compressed.npz')
+
+X_test, y_test, X_train, y_train =  data['test_images'], data['test_labels'], data['train_images'], data['train_labels']
+
+X_train.shape
+
+test_full_dataset = tf.data.Dataset.from_tensor_slices((X_test, y_test))
+train = tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(10)
+
+def show_img(x, y):
+    plt.gray()
+    plt.title(str(y))
+    plt.imshow(x)
+
+
+def divide_into_train_and_val(train_dataset_original, train_ratio = 0.8, val_ratio = 0.2):
+    """
+        pass the train dataset we will use
+        train as -> train and val
+        train will be divided into
+        80% train and 20% val
+    """
+    DATASET_SIZE = len(train_dataset_original)
+
+    train_dataset = train_dataset_original.take(int(train_ratio * DATASET_SIZE)).map(lambda x, y:
+        (
+            tf.reshape(x , (28 , 56 , 1))
+            , y
+        )
+    ).batch(32)
+
+    val_dataset = train_dataset_original.skip(int(train_ratio * DATASET_SIZE)).map(lambda x, y:
+        (
+            tf.reshape(x , (28 , 56 , 1))
+            , y
+        )
+    ).batch(32)
+
+    return train_dataset, val_dataset
+
+train_dataset , val_dataset = divide_into_train_and_val(train)
+
+model = Sequential([
+    Conv2D(filters = 8, kernel_size = (3 , 3), strides = 1, padding = 'same', activation = 'relu', input_shape = (28, 56, 1)),
+    MaxPool2D(pool_size = (2 , 2), strides = 2),
+
+    Conv2D(filters = 16, kernel_size = (3 , 3), strides = 1, padding = 'same', activation = 'relu'),
+    MaxPool2D(pool_size = (2 , 2), strides = 2),
+
+    Flatten(),
+    Dense(100, activation = 'softmax')
+])
+
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+model.fit(train_dataset, validation_data = val_dataset, epochs=20)
+
+x = X_test[69]
+y = y_test[69]
+show_img(x , y)
+x = x.reshape(1, 28, 56, 1)
+predictions = model.predict(x, verbose=0)
+# Get predicted class and confidence
+predicted_class = np.argmax(predictions[0])
+confidence = predictions[0][predicted_class]
+print('class =', predicted_class, 'conf=' , confidence)
+
+model.save('./mnist_trained_weights.keras')
+
+
+
+
+
+
+
+#Denoising
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras import Sequential
+from tensorflow.keras.layers import InputLayer, Conv2D, MaxPool2D, Dense, Flatten, UpSampling2D
+
+data = np.load('./Image_Classification/mnist_compressed.npz')
+
+X_test, y_test, X_train, y_train =  data['test_images'], data['test_labels'], data['train_images'], data['train_labels']
+
+X_train.shape
+
+"""##### The scale of std dev of the gaussian is one of the hyper param affecting the noise the most
+##### Also the noise_factor more big = more noise
+"""
+
+X_train = X_train.astype('float32') / 255
+X_test = X_test.astype('float32') / 255
+
+noise_factor = 0.6
+x_train_noisy = X_train + noise_factor * np.random.normal(loc=0.0, scale=1.0, size=X_train.shape)
+x_test_noisy = X_test + noise_factor * np.random.normal(loc=0.0, scale=1.0, size=X_test.shape)
+
+x_train_noisy = np.reshape(x_train_noisy, (len(x_train_noisy), 28, 56, 1))
+x_test_noisy = np.reshape(x_test_noisy, (len(x_test_noisy), 28, 56, 1))
+X_train = np.reshape(X_train, (len(X_train), 28, 56, 1))
+X_test = np.reshape(X_test, (len(X_test), 28, 56, 1))
+
+x_train_noisy = np.clip(x_train_noisy, 0., 1.)
+x_test_noisy = np.clip(x_test_noisy, 0., 1.)
+
+fig, axes = plt.subplots(1, 2, figsize=(20, 5))
+
+plt.gray()
+axes[0].imshow(X_train[0, : ,: , :])
+axes[1].imshow(x_train_noisy[0, :,: , :])
+
+
+plt.tight_layout()
+plt.show()
+
+model = Sequential([
+                    # encoder network
+                    Conv2D(32, 3, activation='relu', padding='same', input_shape=(28, 56, 1)),
+                    MaxPool2D(2, padding='same'),
+                    Conv2D(16, 3, activation='relu', padding='same'),
+                    MaxPool2D(2, padding='same'),
+                    # decoder network
+                    Conv2D(16, 3, activation='relu', padding='same'),
+                    UpSampling2D(2),
+                    Conv2D(32, 3, activation='relu', padding='same'),
+                    UpSampling2D(2),
+                    # output layer
+                    Conv2D(1, 3, activation='sigmoid', padding='same')
+])
+
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.summary()
+
+history = model.fit(x_train_noisy, X_train, epochs=20, batch_size=256, validation_data=(x_test_noisy, X_test))
+
+model.save('./denoise_2.keras')
+
+denoised_images = model.predict(x_test_noisy)
+
+# Plot original, noisy, and denoised images
+n = 5  # Number of images to display
+plt.figure(figsize=(20, 6))
+for i in range(n):
+    # Original images
+    ax = plt.subplot(3, n, i + 1)
+    plt.imshow(X_test[i].reshape(28, 56), cmap='gray')
+    plt.title("Original")
+    plt.axis("off")
+
+    # Noisy images
+    ax = plt.subplot(3, n, i + 1 + n)
+    plt.imshow(x_test_noisy[i].reshape(28, 56), cmap='gray')
+    plt.title("Noisy")
+    plt.axis("off")
+
+    # Denoised images
+    ax = plt.subplot(3, n, i + 1 + 2*n)
+    plt.imshow(denoised_images[i].reshape(28, 56), cmap='gray')
+    plt.title("Denoised")
+    plt.axis("off")
+
+plt.show()
